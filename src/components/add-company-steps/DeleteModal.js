@@ -3,9 +3,8 @@ import CloseIcon from "../ui/icons/Close";
 import { useTranslation } from "next-i18next";
 
 export default function DeleteModal({ isOpen, onClose, onConfirm }) {
-  if (!isOpen) return null;
-
   const { t } = useTranslation("common");
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
