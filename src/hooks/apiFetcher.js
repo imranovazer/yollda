@@ -5,7 +5,7 @@ export const fetchFromAPI = async (
 ) => {
   const BASE_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL; // Use environment variable for base URL
   const url = `${BASE_URL}${endpoint}`;
-
+  //test
   // const countryMapper = {
   //   en: "EN",
   //   az: "AZ",
