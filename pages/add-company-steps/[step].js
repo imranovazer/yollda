@@ -18,6 +18,8 @@ const StepPage = ({ error }) => {
     </Layout>
   );
 };
+
+
 export async function getServerSideProps({ params, locale }) {
   const { step } = params;
 

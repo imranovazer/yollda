@@ -4,10 +4,53 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import CloseIcon from "../ui/icons/Close";
 
+const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_EXTENSIONS = ["pdf", "doc", "docx", "jpg", "jpeg", "txt"];
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "text/plain",
+];
+
+function getExtension(name = "") {
+  const parts = name.split(".");
+  return parts.length > 1 ? parts.pop().toLowerCase() : "";
+}
+
+function validateFile(file) {
+  if (!file) return { ok: false, error: "No file selected." };
+
+  // size
+  if (file.size > MAX_SIZE_BYTES) {
+    return {
+      ok: false,
+      error: "Max file size is 10 MB.",
+    };
+  }
+
+  // type / extension (MIME can be unreliable across browsers, so we check both)
+  const ext = getExtension(file.name);
+  const isExtAllowed = ALLOWED_EXTENSIONS.includes(ext);
+  const isMimeAllowed = ALLOWED_MIME_TYPES.includes(file.type);
+
+  if (!isExtAllowed && !isMimeAllowed) {
+    return {
+      ok: false,
+      error:
+        "Unsupported file type. Allowed: .doc, .docx, .pdf, .jpg, .jpeg, .txt",
+    };
+  }
+
+  return { ok: true };
+}
+
 const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [expirationDate, setExpirationDate] = useState();
   const [isDragOver, setIsDragOver] = useState(false);
+  const [error, setError] = useState("");
   const { t } = useTranslation();
   const fileInputRef = useRef(null);
 
@@ -21,20 +64,33 @@ const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
     setIsDragOver(false);
   };
 
+  const trySetFile = (file) => {
+    const { ok, error } = validateFile(file);
+    if (ok) {
+      setSelectedFile(file);
+      setError("");
+    } else {
+      setSelectedFile(null);
+      setError(error);
+      // reset input so the same file can be re-picked after correction
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragOver(false);
 
-    const files = Array.from(e.dataTransfer.files);
+    const files = Array.from(e.dataTransfer.files || []);
     if (files.length > 0) {
-      setSelectedFile(files[0]);
+      trySetFile(files[0]);
     }
   };
 
   const handleFileSelect = (e) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setSelectedFile(files[0]);
+      trySetFile(files[0]);
     }
   };
 
@@ -51,9 +107,13 @@ const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
   };
 
   const handleConfirm = () => {
+    if (!selectedFile) return;
+    // extra guard: do not confirm if current file somehow became invalid
+    const { ok } = validateFile(selectedFile);
+    if (!ok) return;
+
     if (expirationDate) {
       const formattedDate = formatDate(expirationDate);
-
       onConfirm(selectedFile, formattedDate);
     } else {
       onConfirm(selectedFile);
@@ -64,6 +124,7 @@ const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
     setSelectedFile(null);
     setExpirationDate(undefined);
     setIsDragOver(false);
+    setError("");
     onClose();
   };
 
@@ -204,13 +265,25 @@ const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
             <p className="text-[15px] text-gray-500 leading-relaxed">
               {t("uploadModal.description")}
             </p>
+
+            {/* Validation hint */}
+            {/* <p className="mt-2 text-[13px] text-gray-500">
+              Allowed: .doc, .docx, .pdf, .jpg, .jpeg, .txt — up to 10 MB
+            </p> */}
           </div>
 
           {/* Content */}
           <div className="px-8 pb-8 space-y-6">
+            {/* Error message */}
+            {error && (
+              <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[14px]">
+                {error}
+              </div>
+            )}
+
             {/* File Upload Area */}
             <div
-              className={`relative border-2  rounded-2xl py-12 px-8 text-center transition-all duration-200 ${
+              className={`relative border-2 rounded-2xl py-12 px-8 text-center transition-all duration-200 ${
                 isDragOver
                   ? "border-light-green bg-gray-100"
                   : "border-gray-200 bg-[#D9D9D900]"
@@ -224,7 +297,8 @@ const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
                 type="file"
                 className="hidden"
                 onChange={handleFileSelect}
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                // Accept only the requested types
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.txt"
               />
 
               <div className="space-y-4">
@@ -266,7 +340,7 @@ const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
 
                 <button
                   onClick={handleBrowseClick}
-                  className="px-6 py-2.5 bg-gray-100   rounded-xl text-[14px] font-medium text-gray-600 hover:bg-gray-200  transition-all duration-200"
+                  className="px-6 py-2.5 bg-gray-100 rounded-xl text-[14px] font-medium text-gray-600 hover:bg-gray-200 transition-all duration-200"
                 >
                   {t("uploadModal.browse")}
                 </button>
@@ -312,7 +386,7 @@ const FileUploadModal = ({ isOpen, onClose, onConfirm }) => {
               </button>
               <button
                 onClick={handleConfirm}
-                disabled={!selectedFile}
+                disabled={!selectedFile || !!error}
                 className="flex-1 h-12 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors text-[15px]"
               >
                 {t("uploadModal.confirm")}

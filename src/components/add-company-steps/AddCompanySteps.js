@@ -171,7 +171,7 @@ function StepCard({ step, Icon, isLast, nextStep }) {
 function TopErrorItem({ onDeleteClick }) {
   const { t } = useTranslation();
   return (
-    <div className="flex w-full">
+    <div className="flex w-full h-full ">
       {/* left rail + bullet */}
       <div className="relative w-[50px]">
         <div className="absolute top-0 left-0 w-[38px] h-[38px] bg-[#FEF2F2] rounded-full flex items-center justify-center">
@@ -245,7 +245,7 @@ export default function SetupPage() {
   }, []);
 
   return (
-    <div className="h-full w-full bg-white">
+    <div className="h-full w-full bg-white ">
       {/* Main */}
       {success ? (
         <div className="w-full h-full flex justify-center items-center">
@@ -268,7 +268,7 @@ export default function SetupPage() {
           </div>
         </div>
       ) : (
-        <div className="container mx-auto px-6 flex flex-col items-stretch gap-8 max-w-[500px]">
+        <div className="container mx-auto px-6 flex flex-col items-stretch gap-8 max-w-[500px] h-full">
           <h1 className="mt-6 text-2xl font-semibold text-gray-900">
             {stepsData?.title}
           </h1>
