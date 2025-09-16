@@ -1,0 +1,10 @@
+1) Error state in steps page /onboarding api 
+2)Submit all steps api not given (Get ready to activate your fleet)
+3)delete application api (modal in ui) not implemented.
+4)Delete uploaded file api not provided.
+5)When options field is empty while fetching step fields those options should be fetched manually.
+Those apis and fields not provided.
+6)while signing up in UI there is service type , but in check-user api it not required.
+7)Some apis require COUNTRY header where to choose it.
+8)In steps page mobile version sidebar contain information like user name (i think you should send it in /me api to desplay it)  and smth like "Orignos  •  Application"
+9) Steps's icons also should be sent in /onboarding api (I display now them statically)
