@@ -60,7 +60,7 @@ export default function TermsConditionsSection({
             <div className="relative w-full max-w-sm">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="w-full bg-light-green/10 border border-light-green/20 rounded-md:w-[30%] xl px-4 py-3 text-left flex items-center justify-between text-green-dark hover:bg-light-green/20 rounded-md:w-[30%] xl transition-colors duration-200"
+                className="w-full bg-light-green/10 border border-light-green/20 rounded-xl px-4 py-3 text-left flex items-center justify-between text-green-dark hover:bg-light-green/20  transition-colors duration-200"
               >
                 <span className="text-span-responsive font-medium">
                   {selecetedCountry?.name}
@@ -74,12 +74,12 @@ export default function TermsConditionsSection({
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-md:w-[30%] xl shadow-lg z-10 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-10 max-h-60 overflow-y-auto">
                   {countriesList?.map((country) => (
                     <button
                       key={country.id}
                       onClick={() => handleCountryChange(country.code)}
-                      className="w-full px-6 py-3 text-left hover:bg-gray-50 transition-colors duration-200 text-span-responsive first:rounded-t-md:w-[30%] xl last:rounded-b-md:w-[30%] xl"
+                      className="w-full px-6 py-3 text-left hover:bg-gray-50 transition-colors duration-200 text-span-responsive "
                     >
                       {country.name}
                     </button>
@@ -107,7 +107,7 @@ export default function TermsConditionsSection({
                   <Link
                     key={category.id}
                     href={`/terms/${category.slug}`}
-                    className={`${widthClass} min-h-[170px] bg-light-green/10 hover:bg-light-green/20 rounded-2md:w-[30%] xl p-6 rounded-2xl transition-all duration-300 cursor-pointer group hover:shadow-lg hover:scale-105 border border-light-green/20`}
+                    className={`${widthClass} min-h-[170px] bg-light-green/10 hover:bg-light-green/20  xl p-6 rounded-2xl transition-all duration-300 cursor-pointer group hover:shadow-lg hover:scale-105 border border-light-green/20`}
                   >
                     <div className="text-left">
                       <h6 className="h6-responsive font-bold text-green-dark mb-3 group-hover:text-green-800 transition-colors duration-200">

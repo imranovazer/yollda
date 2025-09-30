@@ -4,6 +4,9 @@ import ArrowDown from "../../ui/icons/ArrowDown";
 import { useTranslation } from "next-i18next";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/router";
+import Link from "next/link";
+
+import CustomInput2 from "./CustomInput2";
 
 export default function PartnerSignupSection({
   isSubmitted,
@@ -12,6 +15,7 @@ export default function PartnerSignupSection({
 }) {
   const { t } = useTranslation("common");
   const router = useRouter();
+  const { locale } = router;
 
   const params = useSearchParams();
   const services = [
@@ -52,6 +56,8 @@ export default function PartnerSignupSection({
     agreeToTerms: false,
     agreeToPromotions: false,
   });
+
+  console.log(formData.phoneNumber, formData.countryCode);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -206,6 +212,7 @@ export default function PartnerSignupSection({
             phone_prefix: formData.countryCode.slice(1),
             phone: formData.phoneNumber,
             country: formData.country,
+            service_type: formData.service_type,
             city: formData.city,
             email: formData.email,
           }),
@@ -350,8 +357,8 @@ export default function PartnerSignupSection({
                     <h3 className="text-h3-responsive font-bold text-gray-900 mb-2">
                       {t("signup_page.signup_section.form.heading")}
                     </h3>
-                    <a
-                      href={"siteData?.[0]?.linkedin"}
+                    <Link
+                      href={"/signup/fleet"}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex flex items-center text-light-green text-span-small-responsive font-medium mb-4"
@@ -361,7 +368,7 @@ export default function PartnerSignupSection({
                         className={"me-1 h-5"}
                       />
                       {t("signup_page.signup_section.form.as_fleet")}
-                    </a>
+                    </Link>
                     <p className="text-p-small-responsive text-gray-500 leading-relaxed">
                       {t("signup_page.signup_section.form.description")}
                     </p>
@@ -369,91 +376,16 @@ export default function PartnerSignupSection({
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Phone Number */}
+
                     <div>
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("signup_page.signup_section.form.phone_number")}
                       </label>
-                      <div className="flex gap-2">
-                        {/* Country Code Dropdown */}
-                        <div className="relative" ref={countryCodeDropdownRef}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setIsCountryCodeOpen(!isCountryCodeOpen)
-                            }
-                            className={`bg-gray-50 w-[130px] h-11 border border-gray-300 rounded-xl px-3 py-2 text-gray-700 flex items-center space-s-2 hover:bg-gray-200 transition-colors duration-200 min-w-[100px]
-                                                    ${
-                                                      isCountryCodeOpen
-                                                        ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
-                                                        : ""
-                                                    }
-                                                `}
-                          >
-                            <img
-                              src={`${selectedCountryCode?.icon}`}
-                              alt={`${selectedCountryCode?.name} flag`}
-                              className="w-5 h-5 object-cover rounded-[4px]"
-                            />
-                            <span className="text-span-responsive">
-                              {formData.countryCode}
-                            </span>
-                            <ArrowDown
-                              strokeColor={`stroke-gray-500`}
-                              className={`transition-transform duration-200 !ms-auto ${
-                                isCountryCodeOpen ? "rotate-180" : ""
-                              }`}
-                            />
-                          </button>
 
-                          {isCountryCodeOpen && (
-                            <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto custom-contact-scrollbar">
-                              {countriesList?.map((country) => (
-                                <button
-                                  key={country.id}
-                                  type="button"
-                                  onClick={() => {
-                                    handleInputChange(
-                                      "countryCode",
-                                      country.phone_code
-                                    );
-                                    setIsCountryCodeOpen(false);
-                                  }}
-                                  className="w-full px-4 py-3 text-left hover:bg-gray-200 transition-colors duration-200 text-span-responsive first:rounded-t-xl last:rounded-b-xl flex items-center space-s-3"
-                                >
-                                  <img
-                                    src={`${country.icon}`}
-                                    alt={`${country.name} flag`}
-                                    className="w-5 h-5 object-cover rounded-[4px]"
-                                  />
-                                  <span className="text-gray-500">
-                                    {country.phone_code}
-                                  </span>
-                                  <span className="text-gray-500">
-                                    {country.name}
-                                  </span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Phone Input */}
-                        <div className="flex-1">
-                          <input
-                            type="tel"
-                            placeholder="xx xxx xx xx"
-                            value={formData.phoneNumber}
-                            onChange={(e) =>
-                              handleInputChange("phoneNumber", e.target.value)
-                            }
-                            className={`w-full border ${
-                              errors.phoneNumber
-                                ? "border-red-400"
-                                : "border-gray-300"
-                            } rounded-xl px-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent transition-all duration-200 text-input-responsive`}
-                          />
-                        </div>
-                      </div>
+                      <CustomInput2
+                        errors={errors}
+                        handleInputChange={handleInputChange}
+                      />
                       {errors.phoneNumber && (
                         <p className="text-red-500 text-span-small-responsive mt-1">
                           {errors.phoneNumber}
@@ -731,7 +663,7 @@ export default function PartnerSignupSection({
                           <p className="text-span-small-responsive text-gray-500 leading-relaxed">
                             {t("signup_page.signup_section.form.iagree")}{" "}
                             <a
-                              href={`/terms/`}
+                              href={`/${locale}/terms/`}
                               className="text-light-green hover:text-green-dark transition-colors duration-200 underline"
                               target="_blank"
                               rel="noopener noreferrer"

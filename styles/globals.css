@@ -10,7 +10,28 @@
         url('/fonts/Idol/Idol-Poster.ttf') format('truetype');
     font-weight: bold;
     font-style: normal;
-    font-display: swap;
+    /* font-display: swap; */
+}
+/* nprogress custom styles */
+#nprogress {
+    pointer-events: none;
+}
+
+#nprogress .bar {
+    background: #21d654;
+    /* color of the bar */
+    position: fixed;
+    z-index: 1031;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    /* thickness of the bar */
+}
+
+/* Optional: make the spinner disappear */
+#nprogress .spinner {
+    display: none;
 }
 
 select {

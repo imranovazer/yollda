@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import LinkIcon from "../../ui/icons/Link";
 import ArrowDown from "../../ui/icons/ArrowDown";
 import { useTranslation } from "next-i18next";
+import ReactInputMask from "react-input-mask";
+import { useRouter } from "next/router";
+import CustomInput2 from "../partner/CustomInput2";
 
 export default function FleetSignupSection({
   isSubmitted,
@@ -9,6 +12,8 @@ export default function FleetSignupSection({
   countriesData: { results: countriesList },
 }) {
   const { t } = useTranslation("common");
+  const router = useRouter();
+  const { locale } = router;
   const fleetSizes = [
     t("fleetSizes.1-10"),
     t("fleetSizes.11-25"),
@@ -20,12 +25,14 @@ export default function FleetSignupSection({
   const [formData, setFormData] = useState({
     phoneNumber: "",
     countryCode: "+994",
+    service_type: "FLEET",
     email: "",
     fleetSize: "",
     agreeToTerms: false,
   });
 
   const [errors, setErrors] = useState({});
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFleetSizeOpen, setIsFleetSizeOpen] = useState(false);
   const [isCountryCodeOpen, setIsCountryCodeOpen] = useState(false);
@@ -119,19 +126,41 @@ export default function FleetSignupSection({
     }
 
     setIsSubmitting(true);
-
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
       // Here you would make the actual API call
-      // const response = await fetch('/api/fleet-signup', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
-
-      setIsSubmitted(true);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_APP_API_URL}/api/v1/account/check-user/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone_prefix: formData.countryCode.slice(1),
+            phone: formData.phoneNumber,
+            service_type: formData.service_type,
+            email: formData.email,
+            fleet_size: formData.fleetSize,
+          }),
+        }
+      );
+      const responseData = await response.json();
+      if (response.ok) {
+        router.push(
+          `/fleet-login?token=${
+            responseData?.token
+          }&prefix=${formData.countryCode.slice(1)}&phone=${
+            formData.phoneNumber
+          }`
+        );
+        //no need for now as we redirect
+        // setIsSubmitted(true);
+      } else {
+        if (responseData?.message?.[0]) {
+          setError(responseData?.message?.[0]);
+        }
+        if (responseData?.error) {
+          setError(responseData?.error);
+        }
+      }
     } catch (error) {
       console.error("Error submitting form:", error);
       // Handle error (show error message)
@@ -244,8 +273,7 @@ export default function FleetSignupSection({
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("signup_page.signup_section.form.phone_number")}
                       </label>
-                      <div className="flex gap-2">
-                        {/* Country Code Dropdown */}
+                      {/* <div className="flex gap-2">
                         <div className="relative" ref={countryCodeDropdownRef}>
                           <button
                             type="button"
@@ -308,23 +336,36 @@ export default function FleetSignupSection({
                           )}
                         </div>
 
-                        {/* Phone Input */}
                         <div className="flex-1">
-                          <input
-                            type="tel"
+                          <ReactInputMask
+                            mask="99 999 99 99"
                             placeholder="xx xxx xx xx"
                             value={formData.phoneNumber}
                             onChange={(e) =>
                               handleInputChange("phoneNumber", e.target.value)
                             }
-                            className={`w-full border ${
-                              errors.phoneNumber
-                                ? "border-red-400"
-                                : "border-gray-300"
-                            } rounded-xl px-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent transition-all duration-200 text-input-responsive`}
-                          />
+                          >
+                            {(inputProps) => (
+                              <input
+                                {...inputProps}
+                                type="tel"
+                                className={`w-full border ${
+                                  errors.phoneNumber
+                                    ? "border-red-400"
+                                    : "border-gray-300"
+                                } rounded-xl px-4 py-2 text-gray-900 placeholder-gray-500 
+                                focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent 
+                                transition-all duration-200 text-input-responsive`}
+                              />
+                            )}
+                          </ReactInputMask>
                         </div>
-                      </div>
+                      </div> */}
+
+                      <CustomInput2
+                        errors={errors}
+                        handleInputChange={handleInputChange}
+                      />
                       {errors.phoneNumber && (
                         <p className="text-red-500 text-span-small-responsive mt-1">
                           {errors.phoneNumber}
@@ -492,7 +533,7 @@ export default function FleetSignupSection({
                           <p className="text-span-small-responsive text-gray-500 leading-relaxed">
                             {t("fleet.signup_section.form.yagree")}{" "}
                             <a
-                              href={`/terms/`}
+                              href={`/${locale}/terms/`}
                               className="text-light-green hover:text-green-dark transition-colors duration-200 underline"
                               target="_blank"
                               rel="noopener noreferrer"
@@ -517,6 +558,11 @@ export default function FleetSignupSection({
                         </p>
                       )}
                     </div>
+                    {error && (
+                      <p className="text-red-500 text-span-small-responsive mt-1">
+                        {error}
+                      </p>
+                    )}
 
                     {/* Submit Button */}
                     <button

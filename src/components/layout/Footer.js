@@ -365,7 +365,7 @@ const Footer = ({ siteData }) => {
               <div className="flex flex-col lg:flex-row mt-8 lg:mt-0 items-center space-y-4 lg:space-y-0 lg:space-s-8">
                 <div className="flex flex-wrap justify-center lg:justify-end space-s-6 text-gray-400">
                   <a
-                    href={`/terms/${locale}`}
+                    href={`/${locale}/terms`}
                     className="text-white hover:text-light-green transition-colors duration-200 text-span-small-responsive"
                     target="_blank"
                     rel="noopener noreferrer"

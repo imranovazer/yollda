@@ -1,71 +1,75 @@
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { useTranslation } from "next-i18next";
+
 export default function ServicesCarousel({ ourServicesData }) {
   const { t } = useTranslation("common");
-  const services = [
-    {
-      id: 1,
-      title: t("our_services.services.emergency_towing_title"),
-      description: t("our_services.services.emergency_towing_description"),
-      buttonText: t("our_services.services.emergency_towing_button"),
-      image:
-        "https://images.pexels.com/photos/3964704/pexels-photo-3964704.jpeg?auto=compress&cs=tinysrgb&w=800",
-      bgColor: "from-gray-700 to-gray-800",
-    },
-    {
-      id: 2,
-      title: t("our_services.services.tire_repair_title"),
-      description: t("our_services.services.tire_repair_description"),
-      buttonText: t("our_services.services.tire_repair_button"),
-      image:
-        "https://images.pexels.com/photos/3807277/pexels-photo-3807277.jpeg?auto=compress&cs=tinysrgb&w=800",
-      bgColor: "from-gray-700 to-gray-800",
-    },
-    {
-      id: 3,
-      title: t("our_services.services.allver_business_title"),
-      description: t("our_services.services.allver_business_description"),
-      buttonText: t("our_services.services.allver_business_button"),
-      image:
-        "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800",
-      bgColor: "from-gray-700 to-gray-800",
-    },
-    {
-      id: 4,
-      title: t("our_services.services.fuel_delivery_title"),
-      description: t("our_services.services.fuel_delivery_description"),
-      buttonText: t("our_services.services.fuel_delivery_button"),
-      image:
-        "https://images.pexels.com/photos/4173624/pexels-photo-4173624.jpeg?auto=compress&cs=tinysrgb&w=800",
-      bgColor: "from-gray-700 to-gray-800",
-    },
-    {
-      id: 5,
-      title: t("our_services.services.peer_help_title"),
-      description: t("our_services.services.peer_help_description"),
-      buttonText: t("our_services.services.peer_help_button"),
-      image:
-        "https://images.pexels.com/photos/3807738/pexels-photo-3807738.jpeg?auto=compress&cs=tinysrgb&w=800",
-      bgColor: "from-gray-700 to-gray-800",
-    },
-  ];
+  // const services = [
+  //   {
+  //     id: 1,
+  //     title: t("our_services.services.emergency_towing_title"),
+  //     description: t("our_services.services.emergency_towing_description"),
+  //     buttonText: t("our_services.services.emergency_towing_button"),
+  //     image:
+  //       "https://images.pexels.com/photos/3964704/pexels-photo-3964704.jpeg?auto=compress&cs=tinysrgb&w=800",
+  //     bgColor: "from-gray-700 to-gray-800",
+  //   },
+  //   {
+  //     id: 2,
+  //     title: t("our_services.services.tire_repair_title"),
+  //     description: t("our_services.services.tire_repair_description"),
+  //     buttonText: t("our_services.services.tire_repair_button"),
+  //     image:
+  //       "https://images.pexels.com/photos/3807277/pexels-photo-3807277.jpeg?auto=compress&cs=tinysrgb&w=800",
+  //     bgColor: "from-gray-700 to-gray-800",
+  //   },
+  //   {
+  //     id: 3,
+  //     title: t("our_services.services.allver_business_title"),
+  //     description: t("our_services.services.allver_business_description"),
+  //     buttonText: t("our_services.services.allver_business_button"),
+  //     image:
+  //       "https://images.pexels.com/photos/3184291/pexels-photo-3184291.jpeg?auto=compress&cs=tinysrgb&w=800",
+  //     bgColor: "from-gray-700 to-gray-800",
+  //   },
+  //   {
+  //     id: 4,
+  //     title: t("our_services.services.fuel_delivery_title"),
+  //     description: t("our_services.services.fuel_delivery_description"),
+  //     buttonText: t("our_services.services.fuel_delivery_button"),
+  //     image:
+  //       "https://images.pexels.com/photos/4173624/pexels-photo-4173624.jpeg?auto=compress&cs=tinysrgb&w=800",
+  //     bgColor: "from-gray-700 to-gray-800",
+  //   },
+  //   {
+  //     id: 5,
+  //     title: t("our_services.services.peer_help_title"),
+  //     description: t("our_services.services.peer_help_description"),
+  //     buttonText: t("our_services.services.peer_help_button"),
+  //     image:
+  //       "https://images.pexels.com/photos/3807738/pexels-photo-3807738.jpeg?auto=compress&cs=tinysrgb&w=800",
+  //     bgColor: "from-gray-700 to-gray-800",
+  //   },
+  // ];
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [scrollSnaps, setScrollSnaps] = useState([]);
-  const [isDragging, setIsDragging] = useState(false);
+  // const [isDragging, setIsDragging] = useState(false);
 
   // Desktop carousel - shows multiple slides with enhanced touch
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: true,
     align: "center",
-    containScroll: "trimSnaps",
+    // containScroll: "trimSnaps",
+    containScroll: false,
     slidesToScroll: 1,
+
     skipSnaps: false,
     // Enhanced touch settings
     dragFree: false,
-    watchDrag: true,
+    watchDrag: false,
     watchResize: true,
     watchSlides: true,
+    draggable: false,
     // Touch sensitivity and behavior
     startIndex: 0,
     inViewThreshold: 0.7,
@@ -75,11 +79,13 @@ export default function ServicesCarousel({ ourServicesData }) {
   const [mobileEmblaRef, mobileEmblaApi] = useEmblaCarousel({
     loop: true,
     align: "center",
-    containScroll: "trimSnaps",
+    // containScroll: "trimSnaps",
+    containScroll: false,
     slidesToScroll: 1,
     // Mobile-optimized touch settings
     dragFree: false,
-    watchDrag: true,
+
+    watchDrag: false,
     watchResize: true,
     watchSlides: true,
     // Better mobile touch response
@@ -90,7 +96,7 @@ export default function ServicesCarousel({ ourServicesData }) {
   const updateCurrent = useCallback((emblaApi) => {
     if (!emblaApi) return;
     setSelectedIndex(emblaApi.selectedScrollSnap());
-  }, []);
+  });
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -103,13 +109,13 @@ export default function ServicesCarousel({ ourServicesData }) {
   }, [mobileEmblaApi, updateCurrent]);
 
   // Handle drag start/end for better UX
-  const onDragStart = useCallback(() => {
-    setIsDragging(true);
-  }, []);
+  // const onDragStart = useCallback(() => {
+  //   setIsDragging(true);
+  // }, []);
 
-  const onDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  // const onDragEnd = useCallback(() => {
+  //   setIsDragging(false);
+  // }, []);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -117,34 +123,42 @@ export default function ServicesCarousel({ ourServicesData }) {
     setScrollSnaps(emblaApi.scrollSnapList());
     emblaApi.on("select", onSelect);
     emblaApi.on("reInit", onSelect);
-    emblaApi.on("pointerDown", onDragStart);
-    emblaApi.on("pointerUp", onDragEnd);
+    // emblaApi.on("pointerDown", onDragStart);
+    // emblaApi.on("pointerUp", onDragEnd);
     onSelect();
+    const tick = () => {
+      if (document.hidden) return;
+      if (emblaApi) emblaApi.scrollNext();
+      if (mobileEmblaApi) mobileEmblaApi.scrollNext();
+    };
+
+    const id = setInterval(tick, 3000);
 
     return () => {
       emblaApi.off("select", onSelect);
       emblaApi.off("reInit", onSelect);
-      emblaApi.off("pointerDown", onDragStart);
-      emblaApi.off("pointerUp", onDragEnd);
+      // emblaApi.off("pointerDown", onDragStart);
+      // emblaApi.off("pointerUp", onDragEnd);
+      clearInterval(id);
     };
-  }, [emblaApi, onSelect, onDragStart, onDragEnd]);
+  }, [emblaApi, onSelect]);
 
   useEffect(() => {
     if (!mobileEmblaApi) return;
 
     mobileEmblaApi.on("select", onMobileSelect);
     mobileEmblaApi.on("reInit", onMobileSelect);
-    mobileEmblaApi.on("pointerDown", onDragStart);
-    mobileEmblaApi.on("pointerUp", onDragEnd);
+    // mobileEmblaApi.on("pointerDown", onDragStart);
+    // mobileEmblaApi.on("pointerUp", onDragEnd);
     onMobileSelect();
 
     return () => {
       mobileEmblaApi.off("select", onMobileSelect);
       mobileEmblaApi.off("reInit", onMobileSelect);
-      mobileEmblaApi.off("pointerDown", onDragStart);
-      mobileEmblaApi.off("pointerUp", onDragEnd);
+      // mobileEmblaApi.off("pointerDown", onDragStart);
+      // mobileEmblaApi.off("pointerUp", onDragEnd);
     };
-  }, [mobileEmblaApi, onMobileSelect, onDragStart, onDragEnd]);
+  }, [mobileEmblaApi, onMobileSelect]);
 
   const scrollPrev = useCallback(() => {
     if (emblaApi) emblaApi.scrollPrev();
@@ -190,7 +204,7 @@ export default function ServicesCarousel({ ourServicesData }) {
                 return (
                   <div
                     key={service.id}
-                    className="flex-[0_0_320px] min-w-0 mx-3 my-auto"
+                    className="flex-[0_0_30%] min-w-0 px-3 my-auto"
                   >
                     <div
                       className={`w-full rounded-2xl overflow-hidden shadow-xl transition-all duration-700 ease-out ${scaleClass}`}
@@ -307,10 +321,11 @@ export default function ServicesCarousel({ ourServicesData }) {
               <button
                 key={index}
                 onClick={() => scrollTo(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${index === selectedIndex
-                  ? "bg-light-green scale-125 shadow-lg"
-                  : "bg-gray-400 hover:bg-gray-500 hover:scale-110"
-                  }`}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  index === selectedIndex
+                    ? "bg-light-green scale-125 shadow-lg"
+                    : "bg-gray-400 hover:bg-gray-500 hover:scale-110"
+                }`}
                 aria-label={`Go to slide ${index + 1}`}
               />
             ))}
