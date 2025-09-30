@@ -5,6 +5,8 @@ import { useRouter, Router } from "next/router";
 import { useEffect } from "react";
 import "../styles/globals.css";
 import "../styles/phone-input.css";
+import "flag-icons/css/flag-icons.min.css";
+
 import { AuthProvider } from "../src/contex/AuthContex";
 
 nProgress.configure({ showSpinner: false });

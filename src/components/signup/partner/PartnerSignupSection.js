@@ -5,8 +5,19 @@ import { useTranslation } from "next-i18next";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import ReactInputMask from "react-input-mask";
 
-import CustomInput2 from "./CustomInput2";
+// NEW: local countries + helpers
+import { PHONE_COUNTRIES, isoToEmojiFlag } from "../../../utils/phone-counties";
+
+// libphonenumber-js
+import {
+  getExampleNumber,
+  parsePhoneNumberFromString,
+} from "libphonenumber-js";
+import examples from "libphonenumber-js/examples.mobile.json"; // small example dataset
+
+const USE_FLAG_ICONS = true; // set true if you installed "flag-icons" CSS
 
 export default function PartnerSignupSection({
   isSubmitted,
@@ -19,11 +30,7 @@ export default function PartnerSignupSection({
 
   const params = useSearchParams();
   const services = [
-    {
-      id: 1,
-      type: "TOW_TRUCK",
-      title: t("contactus_page.services.tow_truck"),
-    },
+    { id: 1, type: "TOW_TRUCK", title: t("contactus_page.services.tow_truck") },
     {
       id: 2,
       type: "TOW_TRUCK_CARGO",
@@ -46,9 +53,15 @@ export default function PartnerSignupSection({
     },
   ];
 
+  // pick a safe default from local list
+  const DEFAULT_ISO = "AZ";
+  const defaultCountry =
+    PHONE_COUNTRIES.find((c) => c.iso2 === DEFAULT_ISO) || PHONE_COUNTRIES[0];
+
   const [formData, setFormData] = useState({
     phoneNumber: "",
-    countryCode: "+994",
+    countryCode: defaultCountry?.dialCode || "+994", // kept for API compatibility
+    countryIso2: defaultCountry?.iso2 || "AZ", // NEW: track ISO
     email: "",
     service_type: "",
     country: "",
@@ -57,7 +70,6 @@ export default function PartnerSignupSection({
     agreeToPromotions: false,
   });
 
-  console.log(formData.phoneNumber, formData.countryCode);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -82,7 +94,6 @@ export default function PartnerSignupSection({
         setCities(data);
       } catch (error) {}
     };
-
     if (formData.country) fetchCities();
   }, [formData.country]);
 
@@ -114,25 +125,76 @@ export default function PartnerSignupSection({
       ) {
         setIsCityOpen(false);
       }
+      if (
+        servicesDropdownRef.current &&
+        !servicesDropdownRef.current.contains(event.target)
+      ) {
+        setIsServiceOpen(false);
+      }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // ===== PHONE MASK/VALIDATION (local, per-country) =====
+
+  const selectedPhoneCountry = useMemo(() => {
+    // prefer ISO in state
+    const byIso = PHONE_COUNTRIES.find((c) => c.iso2 === formData.countryIso2);
+    if (byIso) return byIso;
+    // fallback by dial code if state came from legacy usage
+    return (
+      PHONE_COUNTRIES.find((c) => c.dialCode === formData.countryCode) ||
+      PHONE_COUNTRIES[0]
+    );
+  }, [formData.countryIso2, formData.countryCode]);
+
+  const nationalFormatToMask = (fmt) => fmt.replace(/[0-9]/g, "9");
+
+  const getMaskForCountry = (iso2) => {
+    try {
+      const ex = getExampleNumber(iso2, examples); // example MOBILE number
+      if (!ex) return "999999999999";
+      const national = ex.formatNational(); // "(201) 555-0123", "99 999 99 99", etc
+      const mask = nationalFormatToMask(national);
+      return /9/.test(mask) ? mask : "999999999999";
+    } catch {
+      return "999999999999";
+    }
+  };
+
+  const phoneMask = useMemo(
+    () => getMaskForCountry(selectedPhoneCountry.iso2),
+    [selectedPhoneCountry.iso2]
+  );
+
+  const renderFlag = (iso2) => {
+    if (USE_FLAG_ICONS) {
+      // requires `flag-icons` CSS imported globally
+      return (
+        <span className={`fi fi-${iso2.toLowerCase()} rounded-[4px] w-5 h-5`} />
+      );
+    }
+    return (
+      <span className="text-lg leading-none" aria-hidden>
+        {isoToEmojiFlag(iso2)}
+      </span>
+    );
+  };
 
   const validateForm = () => {
     const newErrors = {};
 
-    // Phone number validation
-    const phoneRegex = /^[0-9\s\-\(\)]{7,15}$/;
+    // Phone validation using libphonenumber-js
+    const full = `${
+      selectedPhoneCountry.dialCode
+    }${formData.phoneNumber.replace(/\D/g, "")}`;
+    const parsed = parsePhoneNumberFromString(full);
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = t(
         "signup_page.signup_section.form.errors.phone_required"
       );
-    } else if (!phoneRegex.test(formData.phoneNumber.replace(/\s/g, ""))) {
+    } else if (!(parsed && parsed.isValid())) {
       newErrors.phoneNumber = t(
         "signup_page.signup_section.form.errors.phone_invalid"
       );
@@ -150,7 +212,7 @@ export default function PartnerSignupSection({
       );
     }
 
-    // Country validation
+    // Country validation (still from server list for business logic)
     if (!formData.country) {
       newErrors.country = t(
         "signup_page.signup_section.form.errors.country_required"
@@ -177,8 +239,6 @@ export default function PartnerSignupSection({
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-
-    // Clear error when user starts typing/selecting
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -186,23 +246,30 @@ export default function PartnerSignupSection({
 
   const handleFieldReset = (field) => {
     setFormData((prev) => ({ ...prev, [field]: "" }));
-
-    // Clear error when user starts typing/selecting
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
   };
 
+  const handleCountryPickPhone = (iso2) => {
+    const c = PHONE_COUNTRIES.find((x) => x.iso2 === iso2);
+    if (!c) return;
+    setFormData((prev) => ({
+      ...prev,
+      countryIso2: c.iso2,
+      countryCode: c.dialCode, // keep for your API (prefix)
+      // phoneNumber: "", // optional: clear phone when switching country
+    }));
+    setIsCountryCodeOpen(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
+    setError("");
     try {
-      // Here you would make the actual API call
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_APP_API_URL}/api/v1/account/check-user/`,
         {
@@ -227,19 +294,12 @@ export default function PartnerSignupSection({
             formData.phoneNumber
           }`
         );
-        //no need for now as we redirect
-        // setIsSubmitted(true);
       } else {
-        if (responseData?.message?.[0]) {
-          setError(responseData?.message?.[0]);
-        }
-        if (responseData?.error) {
-          setError(responseData?.error);
-        }
+        if (responseData?.message?.[0]) setError(responseData?.message?.[0]);
+        if (responseData?.error) setError(responseData?.error);
       }
     } catch (error) {
       console.error("Error submitting form:", error);
-      // Handle error (show error message)
     } finally {
       setIsSubmitting(false);
     }
@@ -253,15 +313,11 @@ export default function PartnerSignupSection({
       return foundCountry?.name;
     }
     return "";
-  }, [formData.country]);
-
-  const selectedCountryCode = useMemo(() => {
-    return countriesList?.find((c) => c.phone_code === formData.countryCode);
-  }, [formData.countryCode]);
+  }, [formData.country, countriesList]);
 
   const selectedCity = useMemo(() => {
     return cities?.find((city) => city.id === formData.city);
-  }, [formData.city]);
+  }, [formData.city, cities]);
 
   const selectedServiceType = useMemo(() => {
     return services?.find((c) => c.type === formData.service_type);
@@ -279,24 +335,20 @@ export default function PartnerSignupSection({
           <div className="grid lg:grid-cols-2 ">
             {/* Left Side - Content */}
             <div className="max-w-[90%] text-white">
-              {/* Support Badge */}
               <div className="inline-block mb-4">
                 <span className="text-light-green text-span-responsive font-bold">
                   {t("signup_page.signup_section.support_badge")}
                 </span>
               </div>
 
-              {/* Main Heading */}
               <h2 className="font-secondary text-h2-responsive uppercase font-bold leading-tight mb-2">
                 {t("signup_page.signup_section.heading")}
               </h2>
 
-              {/* Description */}
               <p className="text-p-responsive text-white/90 mb-4 leading-relaxed">
                 {t("signup_page.signup_section.description")}
               </p>
 
-              {/* CTA Button */}
               <a
                 href={"siteData?.[0]?.linkedin"}
                 target="_blank"
@@ -336,10 +388,12 @@ export default function PartnerSignupSection({
                         setIsSubmitted(false);
                         setFormData({
                           phoneNumber: "",
-                          countryCode: "+994",
+                          countryCode: defaultCountry?.dialCode || "+994",
+                          countryIso2: defaultCountry?.iso2 || "AZ",
                           email: "",
                           country: "",
                           city: "",
+                          service_type: "",
                           agreeToTerms: false,
                           agreeToPromotions: false,
                         });
@@ -376,16 +430,87 @@ export default function PartnerSignupSection({
 
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Phone Number */}
-
                     <div>
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("signup_page.signup_section.form.phone_number")}
                       </label>
+                      <div className="flex gap-2">
+                        <div className="relative" ref={countryCodeDropdownRef}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setIsCountryCodeOpen(!isCountryCodeOpen)
+                            }
+                            className={`bg-gray-50 w-[150px] h-11 border border-gray-300 rounded-xl px-3 py-2 text-gray-700 flex items-center gap-2 hover:bg-gray-200 transition-colors duration-200 min-w-[120px]
+                              ${
+                                isCountryCodeOpen
+                                  ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
+                                  : ""
+                              }`}
+                          >
+                            {renderFlag(selectedPhoneCountry.iso2)}
+                            <span className="text-span-responsive">
+                              {selectedPhoneCountry.dialCode}
+                            </span>
+                            <ArrowDown
+                              strokeColor={`stroke-gray-500`}
+                              className={`transition-transform duration-200 !ms-auto ${
+                                isCountryCodeOpen ? "rotate-180" : ""
+                              }`}
+                            />
+                          </button>
 
-                      <CustomInput2
-                        errors={errors}
-                        handleInputChange={handleInputChange}
-                      />
+                          {isCountryCodeOpen && (
+                            <div className="absolute top-full left-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto custom-contact-scrollbar">
+                              {PHONE_COUNTRIES.map((country) => (
+                                <button
+                                  key={country.iso2}
+                                  type="button"
+                                  onClick={() =>
+                                    handleCountryPickPhone(country.iso2)
+                                  }
+                                  className="w-full px-4 py-3 text-left hover:bg-gray-200 transition-colors duration-200 text-span-responsive first:rounded-t-xl last:rounded-b-xl flex items-center gap-3"
+                                >
+                                  {renderFlag(country.iso2)}
+                                  <span className="text-gray-700">
+                                    {country.name}
+                                  </span>
+                                  <span className="text-gray-500 ms-auto">
+                                    {country.dialCode}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1">
+                          <ReactInputMask
+                            mask={phoneMask}
+                            maskChar={null}
+                            placeholder={phoneMask.replace(/9/g, "x")}
+                            value={formData.phoneNumber}
+                            onChange={(e) =>
+                              handleInputChange("phoneNumber", e.target.value)
+                            }
+                          >
+                            {(inputProps) => (
+                              <input
+                                {...inputProps}
+                                type="tel"
+                                className={`w-full border ${
+                                  errors.phoneNumber
+                                    ? "border-red-400"
+                                    : "border-gray-300"
+                                } rounded-xl px-4 py-2 text-gray-900 placeholder-gray-500 
+                                focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent 
+                                transition-all duration-200 text-input-responsive`}
+                              />
+                            )}
+                          </ReactInputMask>
+                        </div>
+                      </div>
+
                       {errors.phoneNumber && (
                         <p className="text-red-500 text-span-small-responsive mt-1">
                           {errors.phoneNumber}
@@ -420,7 +545,7 @@ export default function PartnerSignupSection({
                       )}
                     </div>
 
-                    {/* Country Dropdown */}
+                    {/* Country Dropdown (server-driven, unchanged) */}
                     <div>
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("signup_page.signup_section.form.country")}
@@ -434,12 +559,11 @@ export default function PartnerSignupSection({
                               ? "border-red-400"
                               : "border-gray-300"
                           } rounded-xl px-4 py-2 text-left flex items-center justify-between text-gray-900 hover:bg-gray-200 transition-colors duration-200
-                                            ${
-                                              isCountryOpen & !errors.country
-                                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
-                                                : ""
-                                            }
-                                        `}
+                            ${
+                              isCountryOpen && !errors.country
+                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
+                                : ""
+                            }`}
                         >
                           <span
                             className={`text-input-responsive ${
@@ -485,7 +609,7 @@ export default function PartnerSignupSection({
                       )}
                     </div>
 
-                    {/* City Dropdown */}
+                    {/* City Dropdown (server-driven, unchanged) */}
                     <div>
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("signup_page.signup_section.form.city")}
@@ -497,12 +621,11 @@ export default function PartnerSignupSection({
                           className={`w-full border ${
                             errors.city ? "border-red-400" : "border-gray-300"
                           } rounded-xl px-4 py-2 text-left flex items-center justify-between text-gray-900 hover:bg-gray-200 transition-colors duration-200
-                                            ${
-                                              isCityOpen & !errors.city
-                                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
-                                                : ""
-                                            }
-                                        `}
+                            ${
+                              isCityOpen && !errors.city
+                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
+                                : ""
+                            }`}
                         >
                           <span
                             className={`text-input-responsive ${
@@ -545,6 +668,7 @@ export default function PartnerSignupSection({
                       )}
                     </div>
 
+                    {/* Services (unchanged) */}
                     <div>
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("signup_page.signup_section.form.services")}
@@ -556,13 +680,11 @@ export default function PartnerSignupSection({
                           className={`w-full border ${
                             errors.city ? "border-red-400" : "border-gray-300"
                           } rounded-xl px-4 py-2 text-left flex items-center justify-between text-gray-900 hover:bg-gray-200 transition-colors duration-200
-                                            ${
-                                              isServiceOpen &
-                                              !errors.service_type
-                                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
-                                                : ""
-                                            }
-                                        `}
+                            ${
+                              isServiceOpen && !errors.service_type
+                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
+                                : ""
+                            }`}
                         >
                           <span
                             className={`text-input-responsive ${
@@ -610,7 +732,7 @@ export default function PartnerSignupSection({
                       )}
                     </div>
 
-                    {/* Terms Agreement Checkbox - REQUIRED */}
+                    {/* Terms (unchanged) */}
                     <div className="space-y-4">
                       <div className="flex items-start space-s-3">
                         <div className="relative flex-shrink-0 mt-1">
@@ -695,6 +817,7 @@ export default function PartnerSignupSection({
                         </p>
                       </div>
                     </div>
+
                     {error && (
                       <p className="text-red-500 text-span-small-responsive mt-1">
                         {error}
