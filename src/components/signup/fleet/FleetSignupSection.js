@@ -1,14 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import LinkIcon from "../../ui/icons/Link";
 import ArrowDown from "../../ui/icons/ArrowDown";
 import { useTranslation } from "next-i18next";
+import ReactInputMask from "react-input-mask";
+import { useRouter } from "next/router";
+
+// NEW: local countries + helpers
+
+import { PHONE_COUNTRIES, isoToEmojiFlag } from "../../../utils/phone-counties";
+
+// libphonenumber-js
+import {
+  getExampleNumber,
+  parsePhoneNumberFromString,
+  AsYouType,
+} from "libphonenumber-js";
+import examples from "libphonenumber-js/examples.mobile.json"; // example numbers per country (small file)
+
+const USE_FLAG_ICONS = true; // set true if you installed "flag-icons" CSS
 
 export default function FleetSignupSection({
   isSubmitted,
   setIsSubmitted,
-  countriesData: { results: countriesList },
+  // countriesData prop no longer required — keeping for backward compatibility:
+  countriesData,
 }) {
   const { t } = useTranslation("common");
+  const router = useRouter();
+  const { locale } = router;
+
   const fleetSizes = [
     t("fleetSizes.1-10"),
     t("fleetSizes.11-25"),
@@ -17,15 +36,23 @@ export default function FleetSignupSection({
     t("fleetSizes.100+"),
   ];
 
+  // pick a safe default from local list
+  const DEFAULT_ISO = "AZ";
+  const defaultCountry =
+    PHONE_COUNTRIES.find((c) => c.iso2 === DEFAULT_ISO) || PHONE_COUNTRIES[0];
+
   const [formData, setFormData] = useState({
     phoneNumber: "",
-    countryCode: "+994",
+    countryCode: defaultCountry?.dialCode || "+994",
+    countryIso2: defaultCountry?.iso2 || "AZ",
+    service_type: "FLEET",
     email: "",
     fleetSize: "",
     agreeToTerms: false,
   });
 
   const [errors, setErrors] = useState({});
+  const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFleetSizeOpen, setIsFleetSizeOpen] = useState(false);
   const [isCountryCodeOpen, setIsCountryCodeOpen] = useState(false);
@@ -33,7 +60,7 @@ export default function FleetSignupSection({
   const countryCodeDropdownRef = useRef(null);
   const fleetSizeDropdownRef = useRef(null);
 
-  // Close the dropdowns when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -51,22 +78,70 @@ export default function FleetSignupSection({
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // =====> PHONE MASK UTILITIES <=====
+
+  // Turn a formatted national example like "99 999 99 99" or "(201) 555-0123"
+  // into a ReactInputMask mask: digits -> 9, keep punctuation/spaces.
+  const nationalFormatToMask = (fmt) => {
+    // Remove leading country code characters if any sneaked in
+    // then map every digit to "9"
+    return fmt.replace(/[0-9]/g, "9");
+  };
+
+  // Build a country-specific national mask from example numbers.
+  const getMaskForCountry = (iso2) => {
+    try {
+      // get an example MOBILE number (best for signups)
+      const ex = getExampleNumber(iso2, examples);
+      if (!ex) return "999999999999"; // fallback
+
+      // national formatting (no +country)
+      const national = ex.formatNational(); // e.g. "(201) 555-0123"
+      const maskFromNational = nationalFormatToMask(national);
+
+      // Some countries have variable lengths; ReactInputMask needs a single mask.
+      // This keeps it simple. If mask still contains no digits, fallback:
+      if (!/[9]/.test(maskFromNational)) return "999999999999";
+      return maskFromNational;
+    } catch {
+      return "999999999999";
+    }
+  };
+
+  const selectedCountry = useMemo(() => {
+    // prefer match by iso2 stored in state
+    const direct = PHONE_COUNTRIES.find((c) => c.iso2 === formData.countryIso2);
+    if (direct) return direct;
+
+    // fallback by dial code (if state came from legacy "+994")
+    return (
+      PHONE_COUNTRIES.find((c) => c.dialCode === formData.countryCode) ||
+      PHONE_COUNTRIES[0]
+    );
+  }, [formData.countryIso2, formData.countryCode]);
+
+  const phoneMask = useMemo(() => {
+    return getMaskForCountry(selectedCountry.iso2);
+  }, [selectedCountry.iso2]);
+
+  // Validate form
   const validateForm = () => {
     const newErrors = {};
 
-    // Phone number validation
-    const phoneRegex = /^[0-9\s\-\(\)]{7,15}$/;
+    // Phone validation using libphonenumber-js
+    const full = `${selectedCountry.dialCode}${formData.phoneNumber.replace(
+      /\D/g,
+      ""
+    )}`;
+    const parsed = parsePhoneNumberFromString(full);
     if (!formData.phoneNumber.trim()) {
       newErrors.phoneNumber = t(
         "signup_page.signup_section.form.errors.phone_required"
       );
-    } else if (!phoneRegex.test(formData.phoneNumber.replace(/\s/g, ""))) {
+    } else if (!(parsed && parsed.isValid())) {
       newErrors.phoneNumber = t(
         "signup_page.signup_section.form.errors.phone_invalid"
       );
@@ -84,14 +159,14 @@ export default function FleetSignupSection({
       );
     }
 
-    // Fleet size validation
+    // Fleet size
     if (!formData.fleetSize) {
       newErrors.fleetSize = t(
         "fleet.signup_section.form.errors.required_fleet_size"
       );
     }
 
-    // Terms agreement validation (required)
+    // Terms
     if (!formData.agreeToTerms) {
       newErrors.agreeToTerms = t(
         "signup_page.signup_section.form.errors.terms_required"
@@ -111,42 +186,80 @@ export default function FleetSignupSection({
     }
   };
 
+  const handleCountryPick = (iso2) => {
+    const c = PHONE_COUNTRIES.find((x) => x.iso2 === iso2);
+    if (!c) return;
+
+    // Update both code and iso2; reset phone if you want (not required)
+    setFormData((prev) => ({
+      ...prev,
+      countryIso2: c.iso2,
+      countryCode: c.dialCode,
+      // phoneNumber: "", // optional reset
+    }));
+    setIsCountryCodeOpen(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
-
+    setError("");
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_APP_API_URL}/api/v1/account/check-user/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phone_prefix: formData.countryCode.slice(1),
+            phone: formData.phoneNumber,
+            service_type: formData.service_type,
+            email: formData.email,
+            fleet_size: formData.fleetSize,
+          }),
+        }
+      );
+      const data = await res.json();
 
-      // Here you would make the actual API call
-      // const response = await fetch('/api/fleet-signup', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
-
-      setIsSubmitted(true);
-    } catch (error) {
-      console.error("Error submitting form:", error);
-      // Handle error (show error message)
+      if (res.ok) {
+        router.push(
+          `/fleet-login?token=${
+            data?.token
+          }&prefix=${formData.countryCode.slice(1)}&phone=${
+            formData.phoneNumber
+          }`
+        );
+      } else {
+        if (data?.message?.[0]) setError(data?.message?.[0]);
+        if (data?.error) setError(data?.error);
+      }
+    } catch (err) {
+      console.error("Error submitting form:", err);
+      setError(
+        t("signup_page.signup_section.form.errors.general_failed") ||
+          "Something went wrong."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // const selectedCountryCode = countryCodes.find(
-  //   (c) => c.code === formData.countryCode
-  // );
-
-  const selectedCountryCode = useMemo(() => {
-    return countriesList?.find((c) => c.phone_code === formData.countryCode);
-  }, [formData.countryCode]);
+  // For the button preview: render emoji flag or CSS flag
+  const renderFlag = (iso2) => {
+    if (USE_FLAG_ICONS) {
+      // Requires `flag-icons` CSS installed and imported globally
+      return (
+        <span className={`fi fi-${iso2.toLowerCase()} rounded-[4px] w-5 h-5`} />
+      );
+    }
+    return (
+      <span className="text-lg leading-none" aria-hidden>
+        {isoToEmojiFlag(iso2)}
+      </span>
+    );
+  };
 
   return (
     <section className="relative">
@@ -160,24 +273,20 @@ export default function FleetSignupSection({
           <div className="grid lg:grid-cols-2 ">
             {/* Left Side - Content */}
             <div className="max-w-[90%] text-white">
-              {/* Support Badge */}
               <div className="inline-block mb-4">
                 <span className="text-light-green text-span-responsive font-bold">
                   {t("signup_page.signup_section.support_badge")}
                 </span>
               </div>
 
-              {/* Main Heading */}
               <h2 className="font-secondary text-h2-responsive uppercase font-bold leading-tight mb-2">
                 {t("signup_page.signup_section.heading")}
               </h2>
 
-              {/* Description */}
               <p className="text-p-responsive text-white/90 mb-4 leading-relaxed">
                 {t("signup_page.signup_section.description")}
               </p>
 
-              {/* CTA Button */}
               <a
                 href={"siteData?.[0]?.linkedin"}
                 target="_blank"
@@ -217,7 +326,9 @@ export default function FleetSignupSection({
                         setIsSubmitted(false);
                         setFormData({
                           phoneNumber: "",
-                          countryCode: "+994",
+                          countryCode: defaultCountry?.dialCode || "+994",
+                          countryIso2: defaultCountry?.iso2 || "AZ",
+                          service_type: "FLEET",
                           email: "",
                           fleetSize: "",
                           agreeToTerms: false,
@@ -245,28 +356,22 @@ export default function FleetSignupSection({
                         {t("signup_page.signup_section.form.phone_number")}
                       </label>
                       <div className="flex gap-2">
-                        {/* Country Code Dropdown */}
                         <div className="relative" ref={countryCodeDropdownRef}>
                           <button
                             type="button"
                             onClick={() =>
                               setIsCountryCodeOpen(!isCountryCodeOpen)
                             }
-                            className={`bg-gray-50 w-[130px] h-11 border border-gray-300 rounded-xl px-3 py-2 text-gray-700 flex items-center space-s-2 hover:bg-gray-200 transition-colors duration-200 min-w-[100px]
-                                                    ${
-                                                      isCountryCodeOpen
-                                                        ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
-                                                        : ""
-                                                    }
-                                                `}
+                            className={`bg-gray-50 w-[150px] h-11 border border-gray-300 rounded-xl px-3 py-2 text-gray-700 flex items-center gap-2 hover:bg-gray-200 transition-colors duration-200 min-w-[120px]
+                              ${
+                                isCountryCodeOpen
+                                  ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
+                                  : ""
+                              }`}
                           >
-                            <img
-                              src={`${selectedCountryCode?.icon}`}
-                              alt={`${selectedCountryCode?.name} flag`}
-                              className="w-5 h-5 object-cover rounded-[4px]"
-                            />
+                            {renderFlag(selectedCountry.iso2)}
                             <span className="text-span-responsive">
-                              {formData.countryCode}
+                              {selectedCountry.dialCode}
                             </span>
                             <ArrowDown
                               strokeColor={`stroke-gray-500`}
@@ -277,30 +382,22 @@ export default function FleetSignupSection({
                           </button>
 
                           {isCountryCodeOpen && (
-                            <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto custom-contact-scrollbar">
-                              {countriesList?.map((country) => (
+                            <div className="absolute top-full left-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto custom-contact-scrollbar">
+                              {PHONE_COUNTRIES.map((country) => (
                                 <button
-                                  key={country.id}
+                                  key={country.iso2}
                                   type="button"
-                                  onClick={() => {
-                                    handleInputChange(
-                                      "countryCode",
-                                      country.phone_code
-                                    );
-                                    setIsCountryCodeOpen(false);
-                                  }}
-                                  className="w-full px-4 py-3 text-left hover:bg-gray-200 transition-colors duration-200 text-span-responsive first:rounded-t-xl last:rounded-b-xl flex items-center space-s-3"
+                                  onClick={() =>
+                                    handleCountryPick(country.iso2)
+                                  }
+                                  className="w-full px-4 py-3 text-left hover:bg-gray-200 transition-colors duration-200 text-span-responsive first:rounded-t-xl last:rounded-b-xl flex items-center gap-3"
                                 >
-                                  <img
-                                    src={`${country.icon}`}
-                                    alt={`${country.name}`}
-                                    className="w-5 h-5 object-cover rounded-[4px]"
-                                  />
-                                  <span className="text-gray-500">
-                                    {country.phone_code}
-                                  </span>
-                                  <span className="text-gray-500">
+                                  {renderFlag(country.iso2)}
+                                  <span className="text-gray-700">
                                     {country.name}
+                                  </span>
+                                  <span className="text-gray-500 ms-auto">
+                                    {country.dialCode}
                                   </span>
                                 </button>
                               ))}
@@ -308,23 +405,33 @@ export default function FleetSignupSection({
                           )}
                         </div>
 
-                        {/* Phone Input */}
                         <div className="flex-1">
-                          <input
-                            type="tel"
-                            placeholder="xx xxx xx xx"
+                          <ReactInputMask
+                            mask={phoneMask}
+                            maskChar={null}
+                            placeholder={phoneMask.replace(/9/g, "x")}
                             value={formData.phoneNumber}
                             onChange={(e) =>
                               handleInputChange("phoneNumber", e.target.value)
                             }
-                            className={`w-full border ${
-                              errors.phoneNumber
-                                ? "border-red-400"
-                                : "border-gray-300"
-                            } rounded-xl px-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent transition-all duration-200 text-input-responsive`}
-                          />
+                          >
+                            {(inputProps) => (
+                              <input
+                                {...inputProps}
+                                type="tel"
+                                className={`w-full border ${
+                                  errors.phoneNumber
+                                    ? "border-red-400"
+                                    : "border-gray-300"
+                                } rounded-xl px-4 py-2 text-gray-900 placeholder-gray-500 
+                                focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent 
+                                transition-all duration-200 text-input-responsive`}
+                              />
+                            )}
+                          </ReactInputMask>
                         </div>
                       </div>
+
                       {errors.phoneNumber && (
                         <p className="text-red-500 text-span-small-responsive mt-1">
                           {errors.phoneNumber}
@@ -332,7 +439,7 @@ export default function FleetSignupSection({
                       )}
                     </div>
 
-                    {/* Email Address */}
+                    {/* Email */}
                     <div>
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("signup_page.signup_section.form.email")}
@@ -359,7 +466,7 @@ export default function FleetSignupSection({
                       )}
                     </div>
 
-                    {/* Country Dropdown */}
+                    {/* Fleet Size */}
                     <div>
                       <label className="block text-span-small-responsive font-bold text-gray-800 mb-2">
                         {t("fleet.signup_section.form.vehicles_size")}
@@ -373,13 +480,11 @@ export default function FleetSignupSection({
                               ? "border-red-400"
                               : "border-gray-300"
                           } rounded-xl px-4 py-2 text-left flex items-center justify-between text-gray-900 hover:bg-gray-200 transition-colors duration-200
-                                            ${
-                                              isFleetSizeOpen &
-                                              !errors.fleetSize
-                                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
-                                                : ""
-                                            }
-                                        `}
+                            ${
+                              isFleetSizeOpen && !errors.fleetSize
+                                ? "focus:outline-none focus:ring-2 focus:ring-light-green focus:border-transparent"
+                                : ""
+                            }`}
                         >
                           <span
                             className={`text-input-responsive ${
@@ -439,7 +544,7 @@ export default function FleetSignupSection({
 
                     <hr className="my-6 md:my-10 lg:my-16 h-[1px] bg-gray-200 border-0" />
 
-                    {/* Terms Agreement Checkbox - REQUIRED */}
+                    {/* Terms */}
                     <div className="space-y-4">
                       <div className="flex items-center space-s-3">
                         <div className="relative flex-shrink-0">
@@ -492,7 +597,7 @@ export default function FleetSignupSection({
                           <p className="text-span-small-responsive text-gray-500 leading-relaxed">
                             {t("fleet.signup_section.form.yagree")}{" "}
                             <a
-                              href={`/terms/`}
+                              href={`/${locale}/terms/`}
                               className="text-light-green hover:text-green-dark transition-colors duration-200 underline"
                               target="_blank"
                               rel="noopener noreferrer"
@@ -518,7 +623,13 @@ export default function FleetSignupSection({
                       )}
                     </div>
 
-                    {/* Submit Button */}
+                    {error && (
+                      <p className="text-red-500 text-span-small-responsive mt-1">
+                        {error}
+                      </p>
+                    )}
+
+                    {/* Submit */}
                     <button
                       type="submit"
                       disabled={isSubmitting}

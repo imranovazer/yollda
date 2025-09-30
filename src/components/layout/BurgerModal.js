@@ -4,8 +4,11 @@ import RegisterBar from "./RegisterBar";
 import { useEffect, useState } from "react";
 import ArrowDown from "../ui/icons/ArrowDown";
 import RegisterMethods from "../../utils/registerMethods";
+import { useRouter } from "next/router";
 
 const BurgerModal = ({ isOpen, onClose }) => {
+  const router = useRouter();
+  const { locale } = router;
   const { t } = useTranslation("common");
   const burgerLinks = [
     {
@@ -92,7 +95,7 @@ const BurgerModal = ({ isOpen, onClose }) => {
   const legalLinks = [
     {
       label: t("navigation_links.links.termAndCondition"),
-      url: "/terms-and-conditions",
+      url: `/${locale}/terms`,
     },
     { label: t("navigation_links.links.privacy"), url: "/privacy" },
     { label: t("navigation_links.links.cookies"), url: "/cookies" },

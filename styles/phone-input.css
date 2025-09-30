@@ -1,0 +1,35 @@
+.react-tel-input {
+    display: flex;
+    flex-direction:  row-reverse;
+    align-items:  center;
+    justify-content: space-between ;
+    gap: 8px;
+}
+
+
+.react-tel-input input.form-control {
+    @apply  w-full border rounded-xl px-4 py-2 text-gray-900 placeholder-gray-500 transition-all duration-200 text-input-responsive h-auto;
+}
+
+.react-tel-input input.form-control:focus {
+    @apply outline-none ring-2 ring-light-green border-transparent;
+}
+
+.react-tel-input div.flag-dropdown {
+    @apply static  overflow-hidden   bg-gray-50  h-11  rounded-xl   flex items-center space-x-2 min-w-[60px] w-fit ;
+}
+
+.react-tel-input div.flag-dropdown.open {
+    @apply outline-none rounded-xl ring-2 ring-light-green border-transparent;
+}
+
+.react-tel-input div.flag-dropdown div.selected-flag{
+   @apply  bg-gray-50  rounded-xl  hover:bg-gray-200 transition-colors duration-200 w-full h-full flex  items-center px-4;
+}
+.react-tel-input div.flag-dropdown ul.country-list {
+   @apply absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-60 overflow-y-auto ; 
+}
+
+
+
+

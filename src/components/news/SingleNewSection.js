@@ -64,9 +64,8 @@ export default function SingleNewSection({ newData }) {
                         prose-a:text-gray-800 prose-a:underline
                         prose-strong:text-gray-800
 
-                        prose-hr:my-6
-                        prose-hr:md:my-10
-                        prose-hr:lg:my-16
+                        prose-hr:my-5
+                      
                         prose-hr:h-[2px]
                         prose-hr:bg-gray-200
                         prose-hr:border-0

@@ -161,9 +161,12 @@ const Header = ({
             {!isFleetLayout ? (
               <>
                 <div className="hidden md:flex items-center space-s-4 md:space-s-6 lg:space-s-8">
-                  <h5 className="text-span-responsive font-bold">
-                    {t("buttons.support")}
-                  </h5>
+                  <Link href="/contact">
+                    <h5 className="text-span-responsive font-bold">
+                      {t("buttons.support")}
+                    </h5>
+                  </Link>
+
                   <div className="ms-4 relative">
                     <Button
                       text={t("navigation.join")}

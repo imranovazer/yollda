@@ -218,9 +218,11 @@ export default function SetupPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     // Handle actual deletion logic here
+    await axiosInstance.delete("/api/v1/account/step-submission/");
     console.log("Application deleted");
+
     setIsDeleteModalOpen(false);
   };
 
